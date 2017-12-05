@@ -52,7 +52,8 @@ class GameWindow:
                 self.done = True
             elif event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_SPACE:
-                    self.air_track.player.jump()
+                    if not self.air_track.player.is_jumping:
+                        self.air_track.player.jump()
 
     def loop(self):
         while not self.done:
