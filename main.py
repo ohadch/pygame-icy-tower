@@ -98,7 +98,7 @@ class Vector:
 class Environment:
 
     def __init__(self, width_m, height_m, width_px):
-        self.gravity_mps2 = 2
+        self.gravity_mps2 = 9
         self.dimensions_m = self.width_m, self.height_m = width_m, height_m
         self.m_to_px_ratio = width_px / self.width_m
         self.dimensions_px = self.width_px, self.height_px = width_px, self.m_to_px(self.height_m)
@@ -151,11 +151,9 @@ class Player:
         self.radius_m = 1
         self.position = Position(self.window.env.width_m / 2, self.window.env.height_m - self.radius_m)
         self.vector = Vector(0, 0)
-        self.jump_mps = 5
+        self.jump_mps = 100
         self.speed_mps = 70
         self.jump_phase = "NO"  # "NO" / "UP" / "DOWN"
-        self.jump_a_mps2 = 5
-        self.jump_max_rate_mps = 30
         self.is_jumping = False
 
     def bottom_vertex(self):
@@ -174,10 +172,9 @@ class Player:
         return self.bottom_vertex().y_m - self.window.env.height_m
 
     def fix_sticky_bottom(self):
-        if self.is_penetrating_floor():
-            self.position.y_m = self.window.env.height_m - self.radius_m
-            if self.vector.y_mps > 0:
-                self.vector.y_mps = 0
+        self.position.y_m += (self.window.env.height_m - self.bottom_vertex().y_m)
+        if self.vector.y_mps > 0:
+            self.vector.y_mps = 0
 
     def move_right(self):
         if self.right_vertex().x_m <= self.window.env.width_m:
@@ -194,17 +191,20 @@ class Player:
     def apply_gravity(self):
         self.vector.y_mps += self.window.env.gravity_mps2 * self.window.session.dt_s
 
+    def is_colliding(self):
+        return self.is_penetrating_floor()
+
     def update(self):
         self.apply_gravity()
-        self.position.y_m += self.vector.y_mps * self.window.session.dt_s
         if self.is_jumping:
             self.apply_gravity()
-            if self.vector.y_mps > 0:
+            if self.is_colliding() and not self.vector.y_mps < 0:
                 self.vector.y_mps = 0
                 self.is_jumping = False
-        if not self.is_jumping:
+        else:
             if self.is_penetrating_floor():
                 self.fix_sticky_bottom()
+        self.position.y_m += self.vector.y_mps * self.window.session.dt_s
 
     def draw(self):
         pygame.draw.circle(self.window.surface, THECOLORS['blue'], self.position.coordinates_px(self.window.env.m_to_px_ratio), self.window.env.m_to_px(self.radius_m))
