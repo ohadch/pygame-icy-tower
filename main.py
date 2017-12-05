@@ -98,7 +98,7 @@ class Vector:
 class Environment:
 
     def __init__(self, width_m, height_m, width_px):
-        self.gravity_mps2 = 9
+        self.gravity_mps2 = 50
         self.dimensions_m = self.width_m, self.height_m = width_m, height_m
         self.m_to_px_ratio = width_px / self.width_m
         self.dimensions_px = self.width_px, self.height_px = width_px, self.m_to_px(self.height_m)
@@ -151,7 +151,7 @@ class Player:
         self.radius_m = 1
         self.position = Position(self.window.env.width_m / 2, self.window.env.height_m - self.radius_m)
         self.vector = Vector(0, 0)
-        self.jump_mps = 100
+        self.jump_mps = 70
         self.speed_mps = 70
         self.jump_phase = "NO"  # "NO" / "UP" / "DOWN"
         self.is_jumping = False
@@ -166,7 +166,7 @@ class Player:
         return Position(self.position.x_m + self.radius_m, self.position.y_m)
 
     def is_penetrating_floor(self):
-        return self.bottom_vertex().y_m - self.window.env.height_m
+        return (self.bottom_vertex().y_m - self.window.env.height_m) > 0
 
     def floor_penetration(self):
         return self.bottom_vertex().y_m - self.window.env.height_m
@@ -186,7 +186,7 @@ class Player:
 
     def jump(self):
         self.is_jumping = True
-        self.vector.y_mps -= 10
+        self.vector.y_mps -= self.jump_mps
 
     def apply_gravity(self):
         self.vector.y_mps += self.window.env.gravity_mps2 * self.window.session.dt_s
