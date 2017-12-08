@@ -1,5 +1,6 @@
 import pygame
 import random
+import copy
 from pygame.color import THECOLORS
 
 
@@ -34,7 +35,10 @@ class GameWindow:
         self.frame_rate_limit = 100
         self.clock = pygame.time.Clock()
 
+        self.is_scrolling = False
         self.done = False
+
+        self.scrolling_rate_mps = 1
 
     def erase_and_update(self):
         self.surface.fill(THECOLORS['black'])
@@ -52,8 +56,12 @@ class GameWindow:
                 self.done = True
             elif event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_SPACE:
-                    if not self.air_track.player.is_jumping:
-                        self.air_track.player.jump()
+                    self.air_track.player.is_jumping = True
+
+    def scroll(self):
+        self.air_track.player.position. y_m += self.scrolling_rate_mps * self.session.dt_s
+        for step in self.air_track.steps:
+            step.center_m.y_m += self.scrolling_rate_mps* self.session.dt_s
 
     def loop(self):
         while not self.done:
@@ -63,8 +71,27 @@ class GameWindow:
             self.session.dt_s = float(self.clock.tick(self.frame_rate_limit) * 1e-3)
 
             self.get_user_input()
+
+            if not self.is_scrolling:
+                if float(self.air_track.player.position.y_m) < self.env.height_m / 2:
+                    self.is_scrolling = True
+            if self.is_scrolling:
+                self.scroll()
+
             self.air_track.player.update()
+
+            for step in self.air_track.steps:
+                if float(step.center_m.y_m) > float(self.env.height_m):
+                    del step
+            if len(self.air_track.steps) < self.air_track.steps_num:
+                s = Step(self)
+                s.center_m.y_m = 0
+                self.air_track.steps.append(s)
+
             game_window.air_track.player.draw()
+
+            if self.air_track.player.top_vertex().y_m > self.env.height_m:
+                self.done = True
 
             for step in self.air_track.steps:
                 step.draw()
@@ -102,7 +129,7 @@ class Vector:
 class Environment:
 
     def __init__(self, width_m, height_m, width_px):
-        self.gravity_mps2 = 50
+        self.gravity_mps2 = 150
         self.dimensions_m = self.width_m, self.height_m = width_m, height_m
         self.m_to_px_ratio = width_px / self.width_m
         self.dimensions_px = self.width_px, self.height_px = width_px, self.m_to_px(self.height_m)
@@ -121,12 +148,18 @@ class AirTrack:
         self.draw_steps()
 
     def draw_steps(self):
+        floor_step = Step(self.window)
+        floor_step.center_m.y_m = self.window.env.height_m
+        floor_step.length_m = 1000
+        self.steps.append(floor_step)
+
         margins_m = self.window.env.height_m / self.steps_num
         y_positions_m = range(margins_m, self.window.env.height_m, margins_m)
         for y_pos_m in y_positions_m:
             s = Step(self.window)
             s.center_m.y_m = y_pos_m
             self.steps.append(s)
+
 
 # ==================
 # Object Classes
@@ -166,10 +199,14 @@ class Player:
         self.padding_m = 1.0
         self.position = Position(self.window.env.width_m / 2, self.window.env.height_m - self.radius_m)
         self.vector = Vector(0, 0)
-        self.jump_mps = 70
+        self.jump_mps = 100
         self.speed_mps = 70
         self.is_jumping = False
         self.step = None
+        self.previous_vector = Vector(0, 0)
+
+    def top_vertex(self):
+        return Position(self.position.x_m, self.position.y_m - self.radius_m)
 
     def bottom_vertex(self):
         return Position(self.position.x_m, self.position.y_m + self.radius_m)
@@ -200,15 +237,11 @@ class Player:
             self.position.x_m -= self.speed_mps * self.window.session.dt_s
 
     def jump(self):
-        self.is_jumping = True
         self.vector.y_mps -= self.jump_mps
         self.step = None
 
     def apply_gravity(self):
         self.vector.y_mps += self.window.env.gravity_mps2 * self.window.session.dt_s
-
-    def is_colliding(self):
-        return self.is_penetrating_floor()
 
     def is_on_step(self, step):
         return self.vector.y_mps >= 0 and float(step.left_edge().x_m) < self.position.x_m < float(step.right_edge().x_m) and abs(self.bottom_vertex().y_m - step.center_m.y_m) <= self.padding_m
@@ -217,27 +250,33 @@ class Player:
         self.step = step
         self.position.y_m = self.step.center_m.y_m - self.radius_m
         self.vector.y_mps = self.step.vector.y_mps
+        self.is_jumping = False
 
     def update(self):
         self.apply_gravity()
 
         if self.is_jumping:
-            self.apply_gravity()
-            if self.is_colliding() and not self.vector.y_mps < 0:
-                self.vector.y_mps = 0
-                self.is_jumping = False
+            if self.previous_vector.y_mps == 0:
+                self.vector.y_mps -= self.jump_mps
+                self.position.y_m -= self.padding_m * 1.5
+            elif self.previous_vector.y_mps > 0:
+                for step in self.window.air_track.steps:
+                    if self.is_on_step(step):
+                        self.stand_on_step(step)
         else:
-            if self.is_penetrating_floor():
-                self.fix_sticky_bottom()
-
-        for step in self.window.air_track.steps:
-            if self.is_on_step(step):
-                self.stand_on_step(step)
+            for step in self.window.air_track.steps:
+                if self.is_on_step(step):
+                    self.stand_on_step(step)
 
         self.position.y_m += self.vector.y_mps * self.window.session.dt_s
+        self.previous_vector = copy.deepcopy(self.vector)
 
     def draw(self):
         pygame.draw.circle(self.window.surface, THECOLORS['blue'], self.position.coordinates_px(self.window.env.m_to_px_ratio), self.window.env.m_to_px(self.radius_m))
+
+    @staticmethod
+    def lose():
+        exit()
 
 
 # ==================
