@@ -58,49 +58,65 @@ class GameWindow:
                 if event.key == pygame.K_SPACE:
                     self.air_track.player.is_jumping = True
 
+    def set_background(self):
+        self.surface.fill(THECOLORS['black'])
+
+    def draw_objects(self):
+        """
+        Draws all the objects on the screen.
+        """
+        game_window.air_track.player.draw()
+        for step in self.air_track.steps:
+            step.draw()
+
+    def update_steps(self):
+        """
+        Deletes steps that are out of bounds and adds new ones ones to the air track.
+        """
+        for step in self.air_track.steps:
+            if step.center_m.y_m > self.env.height_m:
+                self.air_track.steps.remove(step)
+                del step
+        if len(self.air_track.steps) < self.air_track.steps_num:
+            s = Step(self)
+            s.center_m.y_m = 0
+            self.air_track.steps.append(s)
+
+    def control_screen_scrolling(self):
+        """
+        Starts scrolling of the screen if needed, and scrolls it for each framerate.
+        """
+        if not self.is_scrolling:
+            if float(self.air_track.player.position.y_m) < self.env.height_m / 2:
+                self.is_scrolling = True
+        if self.is_scrolling:
+            self.scroll()
+
     def scroll(self):
+        """
+        Scrolls the screen by lowering the position of all the object by the specified rate.
+        """
         self.air_track.player.position. y_m += self.scrolling_rate_mps * self.session.dt_s
         for step in self.air_track.steps:
             step.center_m.y_m += self.scrolling_rate_mps * self.session.dt_s
 
     def loop(self):
+        """
+        Mainloop function, updates each frame
+        """
         while not self.done:
-            self.surface.fill(THECOLORS['black'])
-
-            # Get the delta t for one frame rate (this changes depending on system load)
-            self.session.dt_s = float(self.clock.tick(self.frame_rate_limit) * 1e-3)
-
-            self.get_user_input()
-
-            if not self.is_scrolling:
-                if float(self.air_track.player.position.y_m) < self.env.height_m / 2:
-                    self.is_scrolling = True
-            if self.is_scrolling:
-                self.scroll()
-
-            self.air_track.player.update()
-
-            for step in self.air_track.steps:
-                if step.center_m.y_m > self.env.height_m:
-                    self.air_track.steps.remove(step)
-                    del step
-
-            if len(self.air_track.steps) < self.air_track.steps_num:
-                s = Step(self)
-                s.center_m.y_m = 0
-                self.air_track.steps.append(s)
-
-            game_window.air_track.player.draw()
-
-            if self.air_track.player.top_vertex().y_m > self.env.height_m:
+            self.set_background()
+            self.session.dt_s = float(self.clock.tick(self.frame_rate_limit) * 1e-3)  # Get the delta t for one frame rate (this changes depending on system load)
+            self.get_user_input()              # Gets any user input
+            self.control_screen_scrolling()    # Controlling the screen's scrolling rate
+            self.air_track.player.update()     # Updates the player's position
+            self.update_steps()                # Deleting steps that are lower than the floor, and generating new steps
+            self.draw_objects()                # Drawing the player and the steps
+            if self.air_track.player.top_vertex().y_m > self.env.height_m:  # If the player is lower than the floor, ends the loop
                 self.done = True
 
-            for step in self.air_track.steps:
-                step.draw()
-
-            self.session.advance_time()
-
-            pygame.display.flip()
+            self.session.advance_time()  # Advancing in time
+            pygame.display.flip()        # Showing the screen
 
 
 # ==================
@@ -109,7 +125,9 @@ class GameWindow:
 
 
 class Position:
-
+    """
+    Position object, consisted of x and y measured in meters.
+    """
     def __init__(self, x_m, y_m):
         self.x_m = float(x_m)
         self.y_m = float(y_m)
@@ -128,7 +146,9 @@ class Position:
 
 
 class Vector:
-
+    """
+    Vector object, consisted of x and y measured in meters/seconds^2.
+    """
     def __init__(self, x_mps, y_mps):
         self.x_mps = float(x_mps)
         self.y_mps = float(y_mps)
