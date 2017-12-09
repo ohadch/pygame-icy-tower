@@ -4,13 +4,14 @@ Things I have learnt:
 
 
 TODO:
-[] Always keep player at the middle of the screen
 [] Control jump height by x axis speed / combo
 [] Show HUD
 [] As game advances, accelerate scrolling rate
 [] Combos
 
+[V] Always keep player at the middle of the screen
 """
+
 
 import pygame
 import random
@@ -105,6 +106,14 @@ class GameWindow:
         if self.is_scrolling:
             self.scroll()
 
+    def keep_player_at_the_middle(self):
+        if self.is_scrolling:
+            if self.air_track.player.position.y_m < self.env.height_m / 2:
+                deviation_m = self.env.height_m / 2 - self.air_track.player.position.y_m
+                self.air_track.player.position.y_m += deviation_m
+                for step in self.air_track.steps:
+                    step.center_m.y_m += deviation_m
+
     def scroll(self):
         """
         Scrolls the screen by lowering the position of all the object by the specified rate.
@@ -122,6 +131,7 @@ class GameWindow:
             self.session.dt_s = float(self.clock.tick(self.frame_rate_limit) * 1e-3)  # Get the delta t for one frame rate (this changes depending on system load)
             self.get_user_input()              # Gets any user input
             self.control_screen_scrolling()    # Controlling the screen's scrolling rate
+            self.keep_player_at_the_middle()
             self.air_track.player.update()     # Updates the player's position
             self.air_track.update_steps()      # Deleting steps that are lower than the floor, and generating new steps
             self.draw_objects()                # Drawing the player and the steps
@@ -238,9 +248,10 @@ class AirTrack:
                 self.steps.remove(step)
                 del step
         if len(self.steps) < self.steps_num:
-            s = Step(self)
+            s = Step(self.window)
             s.center_m.y_m = 0
             self.steps.append(s)
+
 
 # ==================
 # Object Classes
