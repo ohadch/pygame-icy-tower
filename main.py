@@ -38,7 +38,7 @@ class GameWindow:
         self.is_scrolling = False
         self.done = False
 
-        self.scrolling_rate_mps = 1
+        self.scrolling_rate_mps = 5
 
     def erase_and_update(self):
         self.surface.fill(THECOLORS['black'])
@@ -61,7 +61,7 @@ class GameWindow:
     def scroll(self):
         self.air_track.player.position. y_m += self.scrolling_rate_mps * self.session.dt_s
         for step in self.air_track.steps:
-            step.center_m.y_m += self.scrolling_rate_mps* self.session.dt_s
+            step.center_m.y_m += self.scrolling_rate_mps * self.session.dt_s
 
     def loop(self):
         while not self.done:
@@ -81,8 +81,10 @@ class GameWindow:
             self.air_track.player.update()
 
             for step in self.air_track.steps:
-                if float(step.center_m.y_m) > float(self.env.height_m):
+                if step.center_m.y_m > self.env.height_m:
+                    self.air_track.steps.remove(step)
                     del step
+
             if len(self.air_track.steps) < self.air_track.steps_num:
                 s = Step(self)
                 s.center_m.y_m = 0
@@ -109,8 +111,8 @@ class GameWindow:
 class Position:
 
     def __init__(self, x_m, y_m):
-        self.x_m = x_m
-        self.y_m = y_m
+        self.x_m = float(x_m)
+        self.y_m = float(y_m)
 
     def coordinates_m(self):
         return self.x_m, self.y_m
@@ -118,19 +120,31 @@ class Position:
     def coordinates_px(self, m_to_px_ratio):
         return int(self.x_m * m_to_px_ratio), int(self.y_m * m_to_px_ratio)
 
+    def set_x_m(self, x_m):
+        self.x_m = float(x_m)
+
+    def set_y_mps(self, y_m):
+        self.y_m = float(y_m)
+
 
 class Vector:
 
     def __init__(self, x_mps, y_mps):
-        self.x_mps = x_mps
-        self.y_mps = y_mps
+        self.x_mps = float(x_mps)
+        self.y_mps = float(y_mps)
+
+    def set_x_mps(self, x_mps):
+        self.x_mps = float(x_mps)
+
+    def set_y_mps(self, y_mps):
+        self.y_mps = float(y_mps)
 
 
 class Environment:
 
     def __init__(self, width_m, height_m, width_px):
-        self.gravity_mps2 = 150
-        self.dimensions_m = self.width_m, self.height_m = width_m, height_m
+        self.gravity_mps2 = 200
+        self.dimensions_m = self.width_m, self.height_m = float(width_m), float(height_m)
         self.m_to_px_ratio = width_px / self.width_m
         self.dimensions_px = self.width_px, self.height_px = width_px, self.m_to_px(self.height_m)
 
@@ -153,8 +167,8 @@ class AirTrack:
         floor_step.length_m = 1000
         self.steps.append(floor_step)
 
-        margins_m = self.window.env.height_m / self.steps_num
-        y_positions_m = range(margins_m, self.window.env.height_m, margins_m)
+        margins_m = int(self.window.env.height_m / self.steps_num)
+        y_positions_m = range(margins_m, int(self.window.env.height_m), margins_m)
         for y_pos_m in y_positions_m:
             s = Step(self.window)
             s.center_m.y_m = y_pos_m
