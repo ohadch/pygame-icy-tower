@@ -308,11 +308,6 @@ class Player:
     def draw(self):
         pygame.draw.circle(self.window.surface, THECOLORS['blue'], self.position.coordinates_px(self.window.env.m_to_px_ratio), self.window.env.m_to_px(self.radius_m))
 
-    @staticmethod
-    def lose():
-        exit()
-
-
 # ==================
 # Main
 # ==================
