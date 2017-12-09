@@ -4,8 +4,8 @@ Things I have learnt:
 
 
 TODO:
-[] Control jump height by x axis speed / combo
 [] Always keep player at the middle of the screen
+[] Control jump height by x axis speed / combo
 [] Show HUD
 [] As game advances, accelerate scrolling rate
 [] Combos
@@ -26,6 +26,9 @@ from pygame.color import THECOLORS
 class Session:
 
     def __init__(self):
+        """
+        The session objects controls the time in the game.
+        """
         self.dt_s = None
         self.time_sec = 0.0
 
@@ -92,19 +95,6 @@ class GameWindow:
         for step in self.air_track.steps:
             step.draw()
 
-    def update_steps(self):
-        """
-        Deletes steps that are out of bounds and adds new ones ones to the air track.
-        """
-        for step in self.air_track.steps:
-            if step.center_m.y_m > self.env.height_m:
-                self.air_track.steps.remove(step)
-                del step
-        if len(self.air_track.steps) < self.air_track.steps_num:
-            s = Step(self)
-            s.center_m.y_m = 0
-            self.air_track.steps.append(s)
-
     def control_screen_scrolling(self):
         """
         Starts scrolling of the screen if needed, and scrolls it for each framerate.
@@ -133,7 +123,7 @@ class GameWindow:
             self.get_user_input()              # Gets any user input
             self.control_screen_scrolling()    # Controlling the screen's scrolling rate
             self.air_track.player.update()     # Updates the player's position
-            self.update_steps()                # Deleting steps that are lower than the floor, and generating new steps
+            self.air_track.update_steps()      # Deleting steps that are lower than the floor, and generating new steps
             self.draw_objects()                # Drawing the player and the steps
             if self.air_track.player.top_vertex().y_m > self.env.height_m:  # If the player is lower than the floor, ends the loop
                 self.done = True
@@ -210,6 +200,10 @@ class Environment:
 class AirTrack:
 
     def __init__(self, window):
+        """
+        The air track controls the objects that appear on the screen.
+        :param window: Pygame window.
+        """
         self.window = window
         self.player = Player(self.window)
         self.steps_num = 5
@@ -217,11 +211,17 @@ class AirTrack:
         self.draw_steps()
 
     def draw_steps(self):
+        """
+        This method initializes the right amount of steps for the beginning of the game.
+        """
+
+        # Sets the floor step (the one the player stand on at the beginning of the game).
         floor_step = Step(self.window)
         floor_step.center_m.y_m = self.window.env.height_m
         floor_step.length_m = 1000
         self.steps.append(floor_step)
 
+        # Assigns margins between steps and appends the steps to the steps list.
         margins_m = int(self.window.env.height_m / self.steps_num)
         y_positions_m = range(margins_m, int(self.window.env.height_m), margins_m)
         for y_pos_m in y_positions_m:
@@ -229,6 +229,18 @@ class AirTrack:
             s.center_m.y_m = y_pos_m
             self.steps.append(s)
 
+    def update_steps(self):
+        """
+        This method validates that there are always the specified amount of steps on the screen.
+        """
+        for step in self.steps:
+            if step.center_m.y_m > self.window.env.height_m:
+                self.steps.remove(step)
+                del step
+        if len(self.steps) < self.steps_num:
+            s = Step(self)
+            s.center_m.y_m = 0
+            self.steps.append(s)
 
 # ==================
 # Object Classes
@@ -342,6 +354,7 @@ class Player:
 
     def draw(self):
         pygame.draw.circle(self.window.surface, THECOLORS['blue'], self.position.coordinates_px(self.window.env.m_to_px_ratio), self.window.env.m_to_px(self.radius_m))
+
 
 # ==================
 # Main
