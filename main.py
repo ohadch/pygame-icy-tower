@@ -1,3 +1,17 @@
+"""
+Things I have learnt:
+1. Never underestimate the difference between int and float.
+
+
+TODO:
+[] Control jump height by x axis speed / combo
+[] Always keep player at the middle of the screen
+[] Show HUD
+[] As game advances, accelerate scrolling rate
+[] Combos
+
+"""
+
 import pygame
 import random
 import copy
@@ -7,6 +21,7 @@ from pygame.color import THECOLORS
 # ==================
 # Infrastructure Classes
 # ==================
+
 
 class Session:
 
@@ -21,28 +36,39 @@ class Session:
 class GameWindow:
 
     def __init__(self, environment):
+        """
+        Controls the UI, in this case Pygame window.
+        :param environment: Environment object.
+        """
 
+        # Creates a composition of session, environment, game window and air track.
         self.session = Session()
         self.env = environment
         self.air_track = AirTrack(self)
 
+        # Initializing Pygame.
         pygame.init()
 
+        # Gets screen dimensions in pixels from the environment object and sets the surface attribute.
         self.dimensions_px = self.env.dimensions_px
         self.surface = pygame.display.set_mode(self.dimensions_px)
-        self.erase_and_update()
+        self.erase_and_update()  # Updates the screen for the first time.
 
+        # Limits the frame rate and assigns a clock to control it.
         self.frame_rate_limit = 100
         self.clock = pygame.time.Clock()
 
-        self.is_scrolling = False
-        self.done = False
+        self.is_scrolling = False    # Will be set true when the player is high enough so the screen can begin scrolling.
+        self.scrolling_rate_mps = 5  # Controls the scrolling rate of the screen.
 
-        self.scrolling_rate_mps = 5
+        self.done = False          # Will exit the loop when the player loses or decides to quit.
 
     def erase_and_update(self):
-        self.surface.fill(THECOLORS['black'])
+        self.set_background()
         pygame.display.flip()
+
+    def set_background(self):
+        self.surface.fill(THECOLORS['black'])
 
     def get_user_input(self):
         pressed_keys = pygame.key.get_pressed()
@@ -57,9 +83,6 @@ class GameWindow:
             elif event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_SPACE:
                     self.air_track.player.is_jumping = True
-
-    def set_background(self):
-        self.surface.fill(THECOLORS['black'])
 
     def draw_objects(self):
         """
@@ -125,10 +148,13 @@ class GameWindow:
 
 
 class Position:
-    """
-    Position object, consisted of x and y measured in meters.
-    """
+
     def __init__(self, x_m, y_m):
+        """
+        Position object, consisted of x and y measured in meters.
+        :param x_m: Position in meters on x axis.
+        :param y_m: Position in meters on y axis.
+        """
         self.x_m = float(x_m)
         self.y_m = float(y_m)
 
@@ -146,10 +172,13 @@ class Position:
 
 
 class Vector:
-    """
-    Vector object, consisted of x and y measured in meters/seconds^2.
-    """
+
     def __init__(self, x_mps, y_mps):
+        """
+        Vector object, consisted of x and y measured in meters/seconds^2.
+        :param x_mps: Speed in mps on x axis.
+        :param y_mps: Speed in mps on y axis.
+        """
         self.x_mps = float(x_mps)
         self.y_mps = float(y_mps)
 
@@ -163,6 +192,12 @@ class Vector:
 class Environment:
 
     def __init__(self, width_m, height_m, width_px):
+        """
+        The environment object controls the world the game takes place in.
+        :param width_m: Game world width in meters.
+        :param height_m:
+        :param width_px:
+        """
         self.gravity_mps2 = 200
         self.dimensions_m = self.width_m, self.height_m = float(width_m), float(height_m)
         self.m_to_px_ratio = width_px / self.width_m
