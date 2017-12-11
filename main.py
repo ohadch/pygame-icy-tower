@@ -4,11 +4,11 @@ Things I have learnt:
 
 
 TODO:
-[] Control jump height by x axis speed / combo
-[] Show HUD
-[] As game advances, accelerate scrolling rate
 [] Combos
 
+[V] Show HUD
+[V] As game advances, accelerate scrolling rate
+[V] Control jump height by x axis speed / combo
 [V] Always keep player at the middle of the screen
 """
 
@@ -32,6 +32,7 @@ class Session:
         """
         self.dt_s = None
         self.time_sec = 0.0
+        self.score = 0
 
     def advance_time(self):
         self.time_sec += self.dt_s
@@ -45,6 +46,11 @@ class GameWindow:
         :param environment: Environment object.
         """
 
+        # Colors
+        self.background_color = THECOLORS['black']
+        self.curr_color_name = random.choice(THECOLORS.keys())
+        self.step_color = THECOLORS[self.curr_color_name]
+
         # Creates a composition of session, environment, game window and air track.
         self.session = Session()
         self.env = environment
@@ -53,8 +59,11 @@ class GameWindow:
         # Initializing Pygame.
         pygame.init()
 
+        # Fonts
+        self.hud_font = pygame.font.SysFont("monospace", 30)
+
         # Gets screen dimensions in pixels from the environment object and sets the surface attribute.
-        self.dimensions_px = self.env.dimensions_px
+        self.dimensions_px = self.width_px, self.height_px = self.env.dimensions_px
         self.surface = pygame.display.set_mode(self.dimensions_px)
         self.erase_and_update()  # Updates the screen for the first time.
 
@@ -71,8 +80,19 @@ class GameWindow:
         self.set_background()
         pygame.display.flip()
 
+    @staticmethod
+    def invert(color):
+        a, b, c, d = color
+        return abs(a - 255), abs(b - 255), abs(c - 255), abs(d - 255)
+
+    def random_color_name(self):
+        color_name = random.choice(THECOLORS.keys())
+        if color_name == self.curr_color_name or color_name == self.background_color:
+            return self.random_color_name()
+        return color_name
+
     def set_background(self):
-        self.surface.fill(THECOLORS['black'])
+        self.surface.fill(self.background_color)
 
     def get_user_input(self):
         pressed_keys = pygame.key.get_pressed()
@@ -103,6 +123,12 @@ class GameWindow:
         for step in self.air_track.steps:
             step.draw()
 
+    def show_score(self):
+        score = self.hud_font.render("Score: {}".format(self.session.score), 1, THECOLORS['white'])
+        self.surface.blit(score, (self.width_px - 200, 50))
+        rate = self.hud_font.render("Rate: {}".format(self.get_scroll_rate_mps()), 1, THECOLORS['white'])
+        self.surface.blit(rate, (self.width_px - 200, 100))
+
     def control_screen_scrolling(self):
         """
         Starts scrolling of the screen if needed, and scrolls it for each framerate.
@@ -121,13 +147,19 @@ class GameWindow:
                 for step in self.air_track.steps:
                     step.center_m.y_m += deviation_m
 
+    def get_scroll_rate_mps(self):
+        try:
+            return self.scrolling_rate_mps * (self.session.score / pow(self.session.score, 0.7))
+        except ZeroDivisionError:
+            return self.scrolling_rate_mps
+
     def scroll(self):
         """
         Scrolls the screen by lowering the position of all the object by the specified rate.
         """
-        self.air_track.player.position. y_m += self.scrolling_rate_mps * self.session.dt_s
+        self.air_track.player.position. y_m += self.get_scroll_rate_mps() * self.session.dt_s
         for step in self.air_track.steps:
-            step.center_m.y_m += self.scrolling_rate_mps * self.session.dt_s
+            step.center_m.y_m += self.get_scroll_rate_mps() * self.session.dt_s
 
     def loop(self):
         """
@@ -142,6 +174,7 @@ class GameWindow:
             self.air_track.player.update()     # Updates the player's position
             self.air_track.update_steps()      # Deleting steps that are lower than the floor, and generating new steps
             self.draw_objects()                # Drawing the player and the steps
+            self.show_score()
             if self.air_track.player.top_vertex().y_m > self.env.height_m:  # If the player is lower than the floor, ends the loop
                 self.done = True
 
@@ -223,6 +256,7 @@ class AirTrack:
         """
         self.window = window
         self.player = Player(self.window)
+        self.step_id = 1
         self.steps_num = 5
         self.steps = []
         self.draw_steps()
@@ -233,18 +267,19 @@ class AirTrack:
         """
 
         # Sets the floor step (the one the player stand on at the beginning of the game).
-        floor_step = Step(self.window)
+        floor_step = Step(self.window, 0)
         floor_step.center_m.y_m = self.window.env.height_m
         floor_step.length_m = 1000
         self.steps.append(floor_step)
 
         # Assigns margins between steps and appends the steps to the steps list.
         margins_m = int(self.window.env.height_m / self.steps_num)
-        y_positions_m = range(margins_m, int(self.window.env.height_m), margins_m)
+        y_positions_m = range(int(self.window.env.height_m) - margins_m, 0, -margins_m)
         for y_pos_m in y_positions_m:
-            s = Step(self.window)
+            s = Step(self.window, self.step_id)
             s.center_m.y_m = y_pos_m
             self.steps.append(s)
+            self.step_id += 1
 
     def update_steps(self):
         """
@@ -255,10 +290,16 @@ class AirTrack:
                 self.steps.remove(step)
                 del step
         if len(self.steps) < self.steps_num:
-            s = Step(self.window)
+            s = Step(self.window, self.step_id)
+            if self.step_id % 50 == 0:
+                s.length_m = 1000
+            if self.step_id % 100 == 0:
+                self.window.step_color = THECOLORS[self.window.random_color_name()]
+            if self.step_id % 10 == 0:
+                s.should_draw_score = True
             s.center_m.y_m = 0
             self.steps.append(s)
-
+            self.step_id += 1
 
 # ==================
 # Object Classes
@@ -267,14 +308,16 @@ class AirTrack:
 
 class Step:
 
-    def __init__(self, window):
+    def __init__(self, window, id_):
         self.window = window
-        self.min_length_m = 15
-        self.max_length_m = 25
+        self.min_length_m = 25
+        self.max_length_m = 35
         self.length_m = random.randint(self.min_length_m, self.max_length_m)
         self.center_m = self.rand_pos()
-        self.color = THECOLORS['greenyellow']
+        self.color = self.window.step_color
         self.vector = Vector(0, 0)
+        self.id = id_
+        self.should_draw_score = False
 
     def right_edge(self):
         return Position(self.center_m.x_m + int(self.length_m / 2), self.center_m.y_m)
@@ -286,8 +329,19 @@ class Step:
         x_m = random.randint(0, self.window.env.width_m - self.length_m)
         return Position(x_m, self.window.env.height_m - 10)
 
+    def draw_score(self):
+        w = 6
+        h = 2
+        rect = pygame.Rect(self.window.env.m_to_px(self.center_m.x_m - w / 3), self.window.env.m_to_px(self.center_m.y_m), self.window.env.m_to_px(w), self.window.env.m_to_px(h))
+        pygame.draw.rect(self.window.surface, self.color, rect)
+        floor_num = self.window.hud_font.render(str(self.id), 1, self.window.invert(self.color))
+        w, h = self.center_m.coordinates_px(self.window.env.m_to_px_ratio)
+        self.window.surface.blit(floor_num, (w, h))
+
     def draw(self):
         pygame.draw.line(self.window.surface, self.color, self.left_edge().coordinates_px(self.window.env.m_to_px_ratio), self.right_edge().coordinates_px(self.window.env.m_to_px_ratio), 3)
+        if self.should_draw_score:
+            self.draw_score()
 
 
 class Player:
@@ -298,7 +352,7 @@ class Player:
         self.padding_m = 1.0
         self.position = Position(self.window.env.width_m / 2, self.window.env.height_m - self.radius_m)
         self.vector = Vector(0, 0)
-        self.jump_mps = 50
+        self.jump_mps = 70
         self.speed_mps = 70
         self.is_jumping = False
         self.step = None
@@ -351,8 +405,6 @@ class Player:
         else:
             jump = self.jump_mps
             self.in_combo = False
-        print self.time_since_last_side_movement
-        print self.in_combo
         return jump
 
     def apply_gravity(self):
@@ -366,6 +418,7 @@ class Player:
         self.position.y_m = self.step.center_m.y_m - self.radius_m
         self.vector.y_mps = self.step.vector.y_mps
         self.is_jumping = False
+        self.window.session.score = step.id
 
     def update(self):
         self.apply_gravity()
