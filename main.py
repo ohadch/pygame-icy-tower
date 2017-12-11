@@ -78,8 +78,15 @@ class GameWindow:
         pressed_keys = pygame.key.get_pressed()
         if pressed_keys[pygame.K_RIGHT]:
             self.air_track.player.move_right()
+            self.air_track.player.time_moving_to_side += self.session.dt_s
+            self.air_track.player.time_since_last_side_movement = 0
         elif pressed_keys[pygame.K_LEFT]:
             self.air_track.player.move_left()
+            self.air_track.player.time_moving_to_side += self.session.dt_s
+            self.air_track.player.time_since_last_side_movement = 0
+        else:
+            self.air_track.player.time_moving_to_side = 0
+            self.air_track.player.time_since_last_side_movement += self.session.dt_s
 
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
@@ -262,8 +269,8 @@ class Step:
 
     def __init__(self, window):
         self.window = window
-        self.min_length_m = 10
-        self.max_length_m = 20
+        self.min_length_m = 15
+        self.max_length_m = 25
         self.length_m = random.randint(self.min_length_m, self.max_length_m)
         self.center_m = self.rand_pos()
         self.color = THECOLORS['greenyellow']
@@ -291,11 +298,14 @@ class Player:
         self.padding_m = 1.0
         self.position = Position(self.window.env.width_m / 2, self.window.env.height_m - self.radius_m)
         self.vector = Vector(0, 0)
-        self.jump_mps = 100
+        self.jump_mps = 50
         self.speed_mps = 70
         self.is_jumping = False
         self.step = None
         self.previous_vector = Vector(0, 0)
+        self.in_combo = False
+        self.time_moving_to_side = 0.0
+        self.time_since_last_side_movement = 0.0
 
     def top_vertex(self):
         return Position(self.position.x_m, self.position.y_m - self.radius_m)
@@ -328,9 +338,22 @@ class Player:
         if self.left_vertex().x_m > 0:
             self.position.x_m -= self.speed_mps * self.window.session.dt_s
 
-    def jump(self):
-        self.vector.y_mps -= self.jump_mps
-        self.step = None
+    def get_jump_rate_mps(self):
+        combo_jump = self.jump_mps * 3
+        if self.time_moving_to_side > 0.5:
+            if not self.in_combo:
+                self.in_combo = True
+            jump = combo_jump
+        elif 0.0 < self.time_moving_to_side < 0.5:
+            if self.in_combo:
+                jump = combo_jump
+            jump = self.jump_mps * 1.5
+        else:
+            jump = self.jump_mps
+            self.in_combo = False
+        print self.time_since_last_side_movement
+        print self.in_combo
+        return jump
 
     def apply_gravity(self):
         self.vector.y_mps += self.window.env.gravity_mps2 * self.window.session.dt_s
@@ -347,9 +370,12 @@ class Player:
     def update(self):
         self.apply_gravity()
 
+        if self.time_since_last_side_movement < 0.2:
+            self.time_moving_to_side += self.time_since_last_side_movement
+
         if self.is_jumping:
             if self.previous_vector.y_mps == 0:
-                self.vector.y_mps -= self.jump_mps
+                self.vector.y_mps -= self.get_jump_rate_mps()
                 self.position.y_m -= self.padding_m * 1.5
             elif self.previous_vector.y_mps > 0:
                 for step in self.window.air_track.steps:
