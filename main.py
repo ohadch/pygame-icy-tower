@@ -334,7 +334,7 @@ class Step:
         h = 2
         rect = pygame.Rect(self.window.env.m_to_px(self.center_m.x_m - w / 3), self.window.env.m_to_px(self.center_m.y_m), self.window.env.m_to_px(w), self.window.env.m_to_px(h))
         pygame.draw.rect(self.window.surface, self.color, rect)
-        floor_num = self.window.hud_font.render(str(self.id), 1, self.window.invert(self.color))
+        floor_num = self.window.hud_font.render(str(self.id), 5, THECOLORS['black'])
         w, h = self.center_m.coordinates_px(self.window.env.m_to_px_ratio)
         self.window.surface.blit(floor_num, (w, h))
 
