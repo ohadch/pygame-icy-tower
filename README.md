@@ -1,5 +1,8 @@
 # Pygame Icy Tower
-This is a simple game developed using Pygame, where the player controls a character that jumps from step to step on an icy tower. The goal is to reach as high as possible.
+
+This is a simple game developed using Pygame. The player controls a character that jumps from step to step on an icy tower, aiming to reach as high as possible.
+
+![Screen Recording 2024-11-23 at 7 47 20](https://github.com/user-attachments/assets/5d3285dd-d6d4-4e00-bf88-b1da74cd7634)
 
 ## Features
 - Player movement: left and right with arrow keys or A and D.
